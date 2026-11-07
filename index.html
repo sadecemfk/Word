@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kantar Yönetim Sistemi</title>
+
+    <!-- Tasarım Kütüphanesi -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React Kütüphaneleri -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+    <!-- JSX Dönüştürücü -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Birebir A5 Fiş Tasarımı (Tam Köşeli & Keskin Hatlar) */
+        .a5-ticket {
+            border: 1px solid #000000;
+            border-radius: 0px !important;
+            padding: 14px 18px;
+            background: #ffffff;
+            color: #0f172a;
+            font-family: Arial, Helvetica, sans-serif;
+            box-sizing: border-box;
+        }
+
+        .a5-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+
+        .a5-table th, .a5-table td {
+            border: 1px solid #64748b;
+            padding: 6px 10px;
+            font-size: 13px;
+            border-radius: 0px !important;
+        }
+
+        .a5-table th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            text-align: left;
+            color: #1e293b;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-gray-200">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- İKONLAR ---
+        const IconTruck = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-9h-4.5L14 5h-4"/><path d="M14 17h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>;
+        const IconSettings = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+        const IconEdit3 = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
+        const IconX = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const IconPlus = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IconTrash2 = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+        const IconRefreshCw = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>;
+        const IconDownload = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+        const IconPrinter = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
+        const IconFileText = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+        const IconScale = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>;
+        const IconLock = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+        const IconShieldCheck = ({size=24, className=""}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>;
+
+        // HAFTALIK LİSANS HESAPLAMA ALGORİTMASI
+        const getExpectedWeeklyLicenseKey = (dateObj = new Date()) => {
+            const day = dateObj.getDate();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+
+            let week = '01';
+            if (day > 21) week = '04';
+            else if (day > 14) week = '03';
+            else if (day > 7) week = '02';
+            else week = '01';
+
+            return `${week}${month}`;
+        };
+
+        function App() {
+            // Lisans State'leri
+            const [isAuthorized, setIsAuthorized] = useState(false);
+            const [licenseInput, setLicenseInput] = useState('');
+            const [licenseError, setLicenseError] = useState('');
+
+            // Zaman Yardımcıları
+            const getNowDate = () => new Date();
+            const formatDateForInput = (dateObj) => `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+            const formatTimeForInput = (dateObj) => `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+            const formatDateForPrint = (dateString) => dateString ? dateString.split('-').reverse().join('.') : '';
+
+            // --- BASKI TİPİ (tek fiş vs A4'e iki nüsha) ---
+            const [printMode, setPrintMode] = useState('single'); // 'single' | 'a4-copies'
+
+            // --- ARAÇ & ŞOFÖR STATE'LERİ ---
+            const [truckPlate, setTruckPlate] = useState('');
+            const [trailerPlate, setTrailerPlate] = useState('');
+            const [driver, setDriver] = useState('');
+
+            // --- OPERATÖR SEÇİMİ ---
+            const [kantarOp, setKantarOp] = useState('');
+            const [kepceOp, setKepceOp] = useState('');
+
+            // --- ZAMAN STATE'LERİ ---
+            const [entryDate, setEntryDate] = useState('');
+            const [entryTime, setEntryTime] = useState('');
+            const [exitDate, setExitDate] = useState('');
+            const [exitTime, setExitTime] = useState('');
+
+            // --- MANUEL TARTIM GİRİŞİ ---
+            const [daraInput, setDaraInput] = useState('');
+            const [brutInput, setBrutInput] = useState('');
+            const [docNoInput, setDocNoInput] = useState('');
+
+            // --- OLUŞTURULAN FİŞ ---
+            const [receipt, setReceipt] = useState(null);
+
+            // --- AYARLAR & PRESET'LER ---
+            const [showSettings, setShowSettings] = useState(false);
+            const [newTruck, setNewTruck] = useState('');
+            const [newTrailer, setNewTrailer] = useState('');
+            const [newDriver, setNewDriver] = useState('');
+            const [newKantarOp, setNewKantarOp] = useState('');
+            const [newKepceOp, setNewKepceOp] = useState('');
+
+            const [printFormat, setPrintFormat] = useState(null); // 'a5' | '80mm' | 'a4-copies'
+
+            const defaultPresets = [
+                { truck: "10AAY560", trailer: "10AAY561", driver: "Zekeriya Küçükaslan" },
+                { truck: "10AAK560", trailer: "10AAK561", driver: "Tahir Kara" },
+                { truck: "10AAY540", trailer: "10AAY541", driver: "Nazım Karakaçan" }
+            ];
+
+            const [presets, setPresets] = useState([]);
+
+            // ==========================================
+            // OPERATÖR VE İMZA TANIMLAMALARI
+            // ==========================================
+            const defaultKantarOperators = ["KANTAR1", "KANTAR2", "KANTAR3"];
+            const defaultKepceOperators = ["LOD-1", "LOD-2", "LOD-3", "CSB-1", "SULO-1", "SULO-2", "SULO-3", "SULO-4"];
+
+            const [kantarOperators, setKantarOperators] = useState(defaultKantarOperators);
+            const [kepceOperators, setKepceOperators] = useState(defaultKepceOperators);
+
+            // Operatör imza görselleri.
+            // Bir operatöre imza resmi eklemek için: resmi "imzalar/" klasörüne koy
+            // ve aşağıya operatör adı: "dosya yolu" şeklinde ekle. Örnek:
+            //   "KANTAR1": "imzalar/kantar1.png",
+            //   "LOD-1":   "imzalar/lod1.png"
+            // Eşleme yoksa fişte kesik çizgili (ıslak imza) alanı görünür.
+            const operatorImzalari = {
+                // buraya kendi imza eşlemelerini ekle
+            };
+
+            useEffect(() => {
+                // Lisans Otomatik Kontrol
+                const expectedKey = getExpectedWeeklyLicenseKey();
+                const savedLicense = localStorage.getItem('kantar_active_license');
+                setIsAuthorized(savedLicense === expectedKey);
+
+                setNow();
+
+                const savedPresets = localStorage.getItem('kantarPresets');
+                if (savedPresets) {
+                    setPresets(JSON.parse(savedPresets));
+                } else {
+                    setPresets(defaultPresets);
+                    localStorage.setItem('kantarPresets', JSON.stringify(defaultPresets));
+                }
+
+                const savedKantarOps = localStorage.getItem('kantarKantarOps');
+                const kOps = savedKantarOps ? JSON.parse(savedKantarOps) : defaultKantarOperators;
+                setKantarOperators(kOps);
+                setKantarOp(kOps[0] || '');
+
+                const savedKepceOps = localStorage.getItem('kantarKepceOps');
+                const keOps = savedKepceOps ? JSON.parse(savedKepceOps) : defaultKepceOperators;
+                setKepceOperators(keOps);
+                setKepceOp(keOps[0] || '');
+
+                // Sıradaki belge no
+                setDocNoInput(String(getNextDocNo()));
+            }, []);
+
+            // Lisans Doğrulama
+            const handleLicenseSubmit = (e) => {
+                e.preventDefault();
+                const expectedKey = getExpectedWeeklyLicenseKey();
+                if (licenseInput.trim() === expectedKey) {
+                    localStorage.setItem('kantar_active_license', expectedKey);
+                    setIsAuthorized(true);
+                    setLicenseError('');
+                    setLicenseInput('');
+                } else {
+                    setLicenseError('Girdiğiniz kod hatalı!');
+                }
+            };
+
+            const handleLogoutLicense = () => {
+                localStorage.removeItem('kantar_active_license');
+                setIsAuthorized(false);
+            };
+
+            // Otomatik Yazdırma Tetikleyici
+            useEffect(() => {
+                if (printFormat) {
+                    const timer = setTimeout(() => window.print(), 300);
+                    const handleAfterPrint = () => setPrintFormat(null);
+                    window.addEventListener('afterprint', handleAfterPrint);
+                    return () => {
+                        clearTimeout(timer);
+                        window.removeEventListener('afterprint', handleAfterPrint);
+                    };
+                }
+            }, [printFormat]);
+
+            const setNow = () => {
+                const now = getNowDate();
+                setEntryDate(formatDateForInput(now));
+                setEntryTime(formatTimeForInput(now));
+                setExitDate(formatDateForInput(now));
+                setExitTime(formatTimeForInput(now));
+            };
+
+            // Sıralı belge numarası (localStorage) — uydurma değil, artan sayaç
+            const getNextDocNo = () => {
+                const last = parseInt(localStorage.getItem('kantar_last_docno') || '0', 10);
+                return (isNaN(last) ? 0 : last) + 1;
+            };
+
+            const updatePresetsInStorage = (newPresets) => {
+                setPresets(newPresets);
+                localStorage.setItem('kantarPresets', JSON.stringify(newPresets));
+            };
+
+            const handlePresetSelect = (preset) => {
+                setTruckPlate(preset.truck);
+                setTrailerPlate(preset.trailer);
+                setDriver(preset.driver);
+                setReceipt(null);
+            };
+
+            const handleAddPreset = () => {
+                if (newTruck.trim()) {
+                    const updatedList = [...presets, {
+                        truck: newTruck.toUpperCase(),
+                        trailer: newTrailer.toUpperCase(),
+                        driver: newDriver
+                    }];
+                    updatePresetsInStorage(updatedList);
+                    setNewTruck(''); setNewTrailer(''); setNewDriver('');
+                }
+            };
+
+            const handleDeletePreset = (index) => {
+                updatePresetsInStorage(presets.filter((_, i) => i !== index));
+            };
+
+            // Operatör ekle / sil
+            const handleAddKantarOp = () => {
+                if (newKantarOp.trim()) {
+                    const list = [...kantarOperators, newKantarOp.trim().toUpperCase()];
+                    setKantarOperators(list);
+                    localStorage.setItem('kantarKantarOps', JSON.stringify(list));
+                    setNewKantarOp('');
+                }
+            };
+            const handleDeleteKantarOp = (idx) => {
+                const list = kantarOperators.filter((_, i) => i !== idx);
+                setKantarOperators(list);
+                localStorage.setItem('kantarKantarOps', JSON.stringify(list));
+                if (!list.includes(kantarOp)) setKantarOp(list[0] || '');
+            };
+            const handleAddKepceOp = () => {
+                if (newKepceOp.trim()) {
+                    const list = [...kepceOperators, newKepceOp.trim().toUpperCase()];
+                    setKepceOperators(list);
+                    localStorage.setItem('kantarKepceOps', JSON.stringify(list));
+                    setNewKepceOp('');
+                }
+            };
+            const handleDeleteKepceOp = (idx) => {
+                const list = kepceOperators.filter((_, i) => i !== idx);
+                setKepceOperators(list);
+                localStorage.setItem('kantarKepceOps', JSON.stringify(list));
+                if (!list.includes(kepceOp)) setKepceOp(list[0] || '');
+            };
+
+            // --- FİŞ OLUŞTURMA (MANUEL TARTIM) ---
+            const dara = parseInt(daraInput, 10);
+            const brut = parseInt(brutInput, 10);
+            const hasValidWeights = !isNaN(dara) && !isNaN(brut);
+            const netPreview = hasValidWeights ? brut - dara : null;
+
+            const isReadyToWeigh = truckPlate.trim().length > 0 && hasValidWeights && netPreview > 0;
+
+            const createReceipt = () => {
+                if (!isReadyToWeigh) return;
+                const docNo = parseInt(docNoInput, 10) || getNextDocNo();
+                localStorage.setItem('kantar_last_docno', String(docNo));
+                setReceipt({
+                    docNo,
+                    dara,
+                    brut,
+                    net: brut - dara,
+                    kantarOp,
+                    kepceOp
+                });
+                setDocNoInput(String(docNo + 1));
+            };
+
+            const formattedEntryDate = formatDateForPrint(entryDate);
+            const formattedExitDate = formatDateForPrint(exitDate);
+
+            // ==========================================
+            // LİSANS KİLİT EKRANI
+            // ==========================================
+            if (!isAuthorized) {
+                return (
+                    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 font-sans">
+                        <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-8 max-w-md w-full text-center relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+                            <div className="w-16 h-16 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/20">
+                                <IconLock size={32} />
+                            </div>
+                            <h2 className="text-2xl font-black text-white tracking-wide">KANTAR YÖNETİM SİSTEMİ</h2>
+                            <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Giriş Doğrulama</p>
+                            <form onSubmit={handleLicenseSubmit} className="space-y-4 mt-8">
+                                <div>
+                                    <label className="block text-left text-xs font-bold text-slate-300 mb-1 uppercase">Giriş Kodu</label>
+                                    <input type="password" maxLength="6" placeholder="****" value={licenseInput}
+                                        onChange={(e) => setLicenseInput(e.target.value)}
+                                        className="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 px-4 bg-slate-900 border border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-white outline-none"
+                                        autoFocus />
+                                </div>
+                                {licenseError && (
+                                    <div className="p-2.5 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg font-semibold">{licenseError}</div>
+                                )}
+                                <button type="submit" className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition active:scale-[0.98] flex justify-center items-center">
+                                    <IconShieldCheck className="mr-2" size={20} /> Giriş Yap
+                                </button>
+                            </form>
+                            <div className="mt-8 text-[10px] text-slate-500">Tüm Hakları Saklıdır © Kantar Yönetim Sistemi</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!entryDate) return null;
+
+            // ==========================================
+            // A5 FİŞ BİLEŞENİ
+            // ==========================================
+            const RenderA5Ticket = ({ rcpt, isPreview=false, copyLabel="" }) => (
+                <div className="a5-ticket flex flex-col justify-between" style={{ minHeight: isPreview ? 'auto' : '130mm' }}>
+                    <div>
+                        <div className="flex justify-between items-center border-b border-black pb-2 mb-3">
+                            <div className="w-24 text-[10px] font-bold text-gray-500 uppercase">{copyLabel}</div>
+                            <h2 className="text-xl font-black text-slate-900 tracking-wider text-center">KANTAR TARTIM FİŞİ</h2>
+                            <div className="text-right w-24">
+                                <span className="text-[10px] text-gray-500 block font-bold uppercase">BELGE NO</span>
+                                <span className="font-black text-sm text-slate-900">#{rcpt.docNo}</span>
+                            </div>
+                        </div>
+
+                        <table className="a5-table">
+                            <thead>
+                                <tr>
+                                    <th width="33%">ÇEKİCİ PLAKA</th>
+                                    <th width="33%">DORSE PLAKA</th>
+                                    <th width="34%">ŞOFÖR / SÜRÜCÜ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="font-bold text-base text-slate-900">{truckPlate.toUpperCase()}</td>
+                                    <td className="font-bold text-base text-slate-900">{trailerPlate.toUpperCase() || '-'}</td>
+                                    <td className="font-semibold text-slate-800">{driver || '-'}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table className="a5-table">
+                            <thead>
+                                <tr>
+                                    <th width="50%">GİRİŞ TARİHİ VE SAATİ</th>
+                                    <th width="50%">ÇIKIŞ TARİHİ VE SAATİ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="font-semibold text-slate-800">{formattedEntryDate} - <span className="font-bold">{entryTime}</span></td>
+                                    <td className="font-semibold text-slate-800">{formattedExitDate} - <span className="font-bold">{exitTime}</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table className="a5-table">
+                            <thead>
+                                <tr>
+                                    <th width="33%">1. TARTIM (DARA)</th>
+                                    <th width="33%">2. TARTIM (BRÜT)</th>
+                                    <th width="34%">NET AĞIRLIK</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="font-bold text-base text-slate-900">{rcpt.dara.toLocaleString('tr-TR')} kg</td>
+                                    <td className="font-bold text-base text-slate-900">{rcpt.brut.toLocaleString('tr-TR')} kg</td>
+                                    <td className="font-black text-lg text-slate-900 text-right pr-2">{rcpt.net.toLocaleString('tr-TR')} kg</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4 pt-6 mt-4 text-center">
+                        <div>
+                            <div className="text-[11px] font-bold text-gray-600 uppercase">KANTAR OPERATÖRÜ</div>
+                            <div className="font-bold text-xs text-slate-900 mt-1 h-5">{rcpt.kantarOp}</div>
+                            {operatorImzalari[rcpt.kantarOp] ? (
+                                <div className="h-8 mt-1 flex justify-center items-center">
+                                    <img src={operatorImzalari[rcpt.kantarOp]} alt="imza" className="max-h-full" onError={(e)=>{ e.currentTarget.style.display='none'; }} />
+                                </div>
+                            ) : (
+                                <div className="border-b border-dashed border-gray-400 h-4 mx-2 mt-4"></div>
+                            )}
+                            <div className="text-[9px] text-gray-500 mt-1">İmza</div>
+                        </div>
+                        <div>
+                            <div className="text-[11px] font-bold text-gray-600 uppercase">KEPÇE OPERATÖRÜ</div>
+                            <div className="font-bold text-xs text-slate-900 mt-1 h-5">{rcpt.kepceOp}</div>
+                            {operatorImzalari[rcpt.kepceOp] ? (
+                                <div className="h-8 mt-1 flex justify-center items-center">
+                                    <img src={operatorImzalari[rcpt.kepceOp]} alt="imza" className="max-h-full" onError={(e)=>{ e.currentTarget.style.display='none'; }} />
+                                </div>
+                            ) : (
+                                <div className="border-b border-dashed border-gray-400 h-4 mx-2 mt-4"></div>
+                            )}
+                            <div className="text-[9px] text-gray-500 mt-1">İmza</div>
+                        </div>
+                        <div>
+                            <div className="text-[11px] font-bold text-gray-600 uppercase">TESLİM ALAN / SÜRÜCÜ</div>
+                            <div className="font-bold text-xs text-slate-900 mt-1 h-5">{driver || 'Sürücü'}</div>
+                            <div className="border-b border-dashed border-gray-400 h-4 mx-2 mt-4"></div>
+                            <div className="text-[9px] text-gray-500 mt-1">İmza</div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // ==========================================
+            // YAZDIRMA EKRANLARI
+            // ==========================================
+            if (printFormat && receipt) {
+                const rcpt = receipt;
+
+                if (printFormat === 'a5' || printFormat === '80mm') {
+                    const isA5 = printFormat === 'a5';
+                    return (
+                        <div className="bg-white min-h-screen text-black">
+                            <style>
+                                {isA5
+                                    ? `@page { size: A5 portrait; margin: 8mm; } body { background: white; margin: 0; padding: 0; } .receipt { width: 138mm; margin: 0 auto; }`
+                                    : `@page { size: 80mm auto; margin: 0; } body { background: white; margin: 0; padding: 0; } .receipt { width: 76mm; padding: 4mm 2mm; margin: 0 auto; }`}
+                                {`@media print { .no-print { display: none !important; } }`}
+                            </style>
+                            <div className="receipt">
+                                {isA5 ? (
+                                    <RenderA5Ticket rcpt={rcpt} />
+                                ) : (
+                                    <div style={{ fontFamily: "'Courier New', Courier, monospace" }}>
+                                        <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>KANTAR TARTIM FİŞİ</div>
+                                        <div style={{ textAlign: 'center', fontSize: '11px', color: '#333', marginBottom: '12px' }}>Belge No: {rcpt.docNo}</div>
+                                        <div style={{ borderBottom: '2px solid #000', margin: '8px 0' }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}><span>Çekici Plaka:</span> <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{truckPlate.toUpperCase()}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}><span>Dorse Plaka:</span> <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{trailerPlate.toUpperCase() || '-'}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0' }}><span>Şoför:</span> <span style={{ fontWeight: 'bold' }}>{driver || '-'}</span></div>
+                                        <div style={{ borderBottom: '1px dashed #000', margin: '8px 0' }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Giriş:</span> <span style={{ fontWeight: 'bold' }}>{formattedEntryDate} {entryTime}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Çıkış:</span> <span style={{ fontWeight: 'bold' }}>{formattedExitDate} {exitTime}</span></div>
+                                        <div style={{ borderBottom: '1px dashed #000', margin: '8px 0' }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Dara:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.dara.toLocaleString('tr-TR')} kg</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Brüt:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.brut.toLocaleString('tr-TR')} kg</span></div>
+                                        <div style={{ borderBottom: '2px solid #000', margin: '8px 0' }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 'bold' }}><span>NET:</span> <span>{rcpt.net.toLocaleString('tr-TR')} kg</span></div>
+                                        <div style={{ borderBottom: '1px dashed #000', margin: '8px 0' }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '6px' }}><span>Kantarcı:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.kantarOp}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}><span>Kepçe Op.:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.kepceOp}</span></div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="no-print flex flex-col items-center justify-center mt-12 space-y-3 p-4 text-center font-sans">
+                                <p className="text-gray-500">Yazdırma penceresi otomatik açılmadıysa <b>CTRL+P</b> tuşlarına basabilirsiniz.</p>
+                                <button onClick={() => setPrintFormat(null)} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow flex items-center">
+                                    <IconX className="mr-2" /> Panele Geri Dön
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                if (printFormat === 'a4-copies') {
+                    return (
+                        <div className="bg-white min-h-screen text-black">
+                            <style>
+                                {`
+                                    @page { size: A4 portrait; margin: 8mm; }
+                                    body { background: white; margin: 0; padding: 0; }
+                                    .a4-container { width: 194mm; height: 280mm; margin: 0 auto; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+                                    .a5-wrapper { height: 133mm; box-sizing: border-box; }
+                                    @media print { .no-print { display: none !important; } }
+                                `}
+                            </style>
+                            <div className="a4-container">
+                                <div className="a5-wrapper"><RenderA5Ticket rcpt={rcpt} copyLabel="İŞLETME NÜSHASI" /></div>
+                                <div style={{ margin: '6mm 0', borderTop: '1px dashed #000', width: '100%' }}></div>
+                                <div className="a5-wrapper"><RenderA5Ticket rcpt={rcpt} copyLabel="ŞOFÖR NÜSHASI" /></div>
+                            </div>
+                            <div className="no-print flex flex-col items-center justify-center mt-8 space-y-3 p-4 text-center font-sans">
+                                <p className="text-gray-600">Yazdırma penceresi otomatik açılmadıysa <b>CTRL+P</b> tuşlarına basabilirsiniz.</p>
+                                <button onClick={() => setPrintFormat(null)} className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow flex items-center">
+                                    <IconX className="mr-2" /> İşlemi İptal Et ve Panele Dön
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+            }
+
+            // ==========================================
+            // AYARLAR MODALI
+            // ==========================================
+            const SettingsModal = () => (
+                <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
+                            <h2 className="text-xl font-bold flex items-center text-gray-800"><IconSettings className="mr-2" /> Araç, Şoför ve Operatör Ayarları</h2>
+                            <button onClick={() => setShowSettings(false)} className="p-2 bg-gray-100 hover:bg-red-100 hover:text-red-600 rounded-full transition"><IconX size={24} /></button>
+                        </div>
+                        <div className="p-6 space-y-8">
+                            {/* ARAÇLAR */}
+                            <div>
+                                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+                                    <h3 className="font-semibold text-blue-800 mb-3 text-sm uppercase">Yeni Araç Ekle</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                                        <input type="text" placeholder="Çekici Plaka" value={newTruck} onChange={e => setNewTruck(e.target.value)} className="p-2 border rounded focus:ring-2 focus:ring-blue-500 uppercase" />
+                                        <input type="text" placeholder="Dorse Plaka" value={newTrailer} onChange={e => setNewTrailer(e.target.value)} className="p-2 border rounded focus:ring-2 focus:ring-blue-500 uppercase" />
+                                        <input type="text" placeholder="Şoför Adı" value={newDriver} onChange={e => setNewDriver(e.target.value)} className="p-2 border rounded focus:ring-2 focus:ring-blue-500" />
+                                    </div>
+                                    <button onClick={handleAddPreset} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded flex justify-center items-center"><IconPlus size={18} className="mr-1" /> Listeye Ekle (Kalıcı Kayıt)</button>
+                                </div>
+                                <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase">Kayıtlı Araçlar ({presets.length})</h3>
+                                <div className="space-y-2">
+                                    {presets.length === 0 && <p className="text-gray-500 text-sm italic">Kayıtlı araç bulunmuyor.</p>}
+                                    {presets.map((preset, idx) => (
+                                        <div key={idx} className="flex justify-between items-center bg-gray-50 border p-3 rounded hover:bg-gray-100 transition">
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                                                <span className="font-bold text-gray-800 bg-white px-2 py-1 rounded border shadow-sm">{preset.truck}</span>
+                                                <span className="text-sm text-gray-600 font-medium">Dorse: {preset.trailer || '-'}</span>
+                                                <span className="text-sm text-gray-600 font-medium">Şoför: {preset.driver || '-'}</span>
+                                            </div>
+                                            <button onClick={() => handleDeletePreset(idx)} className="p-2 text-red-500 hover:bg-red-100 rounded" title="Sil"><IconTrash2 size={18} /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* OPERATÖRLER */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 className="font-semibold text-gray-700 mb-2 text-sm uppercase">Kantar Operatörleri</h3>
+                                    <div className="flex gap-2 mb-2">
+                                        <input type="text" placeholder="Yeni kantarcı" value={newKantarOp} onChange={e => setNewKantarOp(e.target.value)} className="flex-1 p-2 border rounded uppercase" />
+                                        <button onClick={handleAddKantarOp} className="px-3 bg-gray-800 text-white rounded"><IconPlus size={18} /></button>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {kantarOperators.map((op, idx) => (
+                                            <div key={idx} className="flex justify-between items-center bg-gray-50 border px-3 py-1.5 rounded text-sm">
+                                                <span className="font-semibold">{op}</span>
+                                                <button onClick={() => handleDeleteKantarOp(idx)} className="p-1 text-red-500 hover:bg-red-100 rounded"><IconTrash2 size={14} /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-700 mb-2 text-sm uppercase">Kepçe Operatörleri</h3>
+                                    <div className="flex gap-2 mb-2">
+                                        <input type="text" placeholder="Yeni kepçe op." value={newKepceOp} onChange={e => setNewKepceOp(e.target.value)} className="flex-1 p-2 border rounded uppercase" />
+                                        <button onClick={handleAddKepceOp} className="px-3 bg-gray-800 text-white rounded"><IconPlus size={18} /></button>
+                                    </div>
+                                    <div className="space-y-1">
+                                        {kepceOperators.map((op, idx) => (
+                                            <div key={idx} className="flex justify-between items-center bg-gray-50 border px-3 py-1.5 rounded text-sm">
+                                                <span className="font-semibold">{op}</span>
+                                                <button onClick={() => handleDeleteKepceOp(idx)} className="p-1 text-red-500 hover:bg-red-100 rounded"><IconTrash2 size={14} /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // ==========================================
+            // NORMAL KONTROL PANELİ EKRANI
+            // ==========================================
+            return (
+                <div className="min-h-screen p-4 font-sans text-gray-800 pb-20 relative bg-gray-200">
+                {showSettings && SettingsModal()}
+
+                <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6">
+                        <h1 className="text-2xl font-bold text-gray-800 flex items-center mb-4 sm:mb-0">
+                            <IconTruck className="mr-3 text-blue-600" size={32} /> Kantar Yönetim Sistemi
+                        </h1>
+                        <div className="flex items-center gap-3">
+                            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-3 py-2 rounded-lg font-bold flex items-center">
+                                <IconShieldCheck size={16} className="mr-1.5 text-emerald-600" /> Lisans Aktif
+                            </div>
+                            <button onClick={handleLogoutLicense} title="Sistemi Kilitle" className="p-2 bg-gray-100 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-lg transition border"><IconLock size={18} /></button>
+                            <button onClick={() => setShowSettings(true)} className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition font-semibold shadow-sm text-sm"><IconSettings size={18} className="mr-2" /> Araç Yönetimi</button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* --- SOL KONTROL SÜTUNU --- */}
+                        <div className="lg:col-span-5 space-y-6">
+
+                            {/* BASKI TİPİ */}
+                            <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                                <div className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2">Baskı Tipini Seçin</div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={() => setPrintMode('single')} className={`py-2 px-3 rounded-lg font-bold text-sm transition-all border ${printMode === 'single' ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>📄 Tekli Fiş (A5 / 80mm)</button>
+                                    <button onClick={() => setPrintMode('a4-copies')} className={`py-2 px-3 rounded-lg font-bold text-sm transition-all border ${printMode === 'a4-copies' ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>📑 A4 İki Nüsha</button>
+                                </div>
+                                <p className="text-[11px] text-indigo-700 mt-2">A4 iki nüsha = aynı fişin işletme + şoför kopyası tek sayfada.</p>
+                            </div>
+
+                            {/* ARAÇ VE ŞOFÖR SEÇİMİ */}
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h2 className="text-md font-semibold text-blue-800 flex items-center"><IconTruck className="mr-2" size={18}/> Araç ve Şoför Bilgileri</h2>
+                                </div>
+                                <div className="mb-4">
+                                    <div className="text-xs text-gray-500 font-bold mb-2 uppercase tracking-wider">Hızlı Seçim (Tıkla ve Doldur)</div>
+                                    {presets.length === 0 ? (
+                                        <div className="p-3 bg-white border border-dashed rounded text-sm text-gray-500 text-center">Araç bulunmuyor.</div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                                            {presets.map((preset, idx) => (
+                                                <button key={idx} onClick={() => handlePresetSelect(preset)} className={`py-2 px-3 rounded-lg border text-left font-bold transition-all flex flex-col justify-center ${truckPlate === preset.truck ? 'bg-blue-600 border-blue-700 text-white shadow-md' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                                                    <span className="text-sm">{preset.truck}</span>
+                                                    <span className={`text-[10px] uppercase font-normal mt-1 ${truckPlate === preset.truck ? 'text-blue-100' : 'text-gray-500'}`}>{preset.driver}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="pt-3 border-t border-blue-200">
+                                    <div className="text-xs text-gray-500 font-bold mb-3 uppercase tracking-wider flex items-center"><IconEdit3 size={14} className="mr-1"/> Manuel Giriş / Düzenleme</div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center"><label className="w-28 text-sm text-gray-700 font-semibold">Çekici Plaka:</label><input type="text" value={truckPlate} onChange={(e) => { setTruckPlate(e.target.value.toUpperCase()); setReceipt(null); }} className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 uppercase font-bold" placeholder="Örn: 10AAY560"/></div>
+                                        <div className="flex items-center"><label className="w-28 text-sm text-gray-700 font-semibold">Dorse Plaka:</label><input type="text" value={trailerPlate} onChange={(e) => { setTrailerPlate(e.target.value.toUpperCase()); setReceipt(null); }} className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 uppercase font-bold" placeholder="Örn: 10AAY561"/></div>
+                                        <div className="flex items-center"><label className="w-28 text-sm text-gray-700 font-semibold">Şoför:</label><input type="text" value={driver} onChange={(e) => { setDriver(e.target.value); setReceipt(null); }} className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" placeholder="Ad Soyad Giriniz"/></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* OPERATÖR SEÇİMİ */}
+                            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                                <h2 className="text-md font-semibold text-amber-800 mb-3">Operatör Seçimi</h2>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kantarcı</label>
+                                        <select value={kantarOp} onChange={(e) => { setKantarOp(e.target.value); setReceipt(null); }} className="w-full p-2 border rounded focus:ring-2 focus:ring-amber-500 font-semibold bg-white">
+                                            {kantarOperators.map((op, i) => <option key={i} value={op}>{op}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kepçe Operatörü</label>
+                                        <select value={kepceOp} onChange={(e) => { setKepceOp(e.target.value); setReceipt(null); }} className="w-full p-2 border rounded focus:ring-2 focus:ring-amber-500 font-semibold bg-white">
+                                            {kepceOperators.map((op, i) => <option key={i} value={op}>{op}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ZAMAN BİLGİLERİ */}
+                            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h2 className="text-md font-semibold text-gray-700">Zaman Bilgileri:</h2>
+                                    <button onClick={setNow} className="p-1.5 bg-gray-200 hover:bg-gray-300 rounded text-gray-700 flex items-center text-sm shadow-sm transition"><IconRefreshCw size={14} className="mr-1" /> Şimdiki Zaman</button>
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="p-3 bg-white border rounded shadow-sm">
+                                        <div className="text-xs font-bold text-gray-500 uppercase mb-2">Giriş Zamanı (1. Tartım)</div>
+                                        <div className="flex gap-2">
+                                            <input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm" />
+                                            <input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} className="w-32 p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm" />
+                                        </div>
+                                    </div>
+                                    <div className="p-3 bg-white border rounded shadow-sm">
+                                        <div className="text-xs font-bold text-gray-500 uppercase mb-2">Çıkış Zamanı (2. Tartım)</div>
+                                        <div className="flex gap-2">
+                                            <input type="date" value={exitDate} onChange={(e) => setExitDate(e.target.value)} className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm" />
+                                            <input type="time" value={exitTime} onChange={(e) => setExitTime(e.target.value)} className="w-32 p-2 border rounded focus:ring-2 focus:ring-blue-500 text-sm" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* MANUEL TARTIM GİRİŞİ */}
+                            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <h2 className="text-md font-semibold text-green-800 mb-3 flex items-center"><IconScale className="mr-2" size={18}/> Tartım Girişi (Manuel)</h2>
+                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">1. Tartım (Dara) kg</label>
+                                        <input type="number" inputMode="numeric" value={daraInput} onChange={(e) => { setDaraInput(e.target.value); setReceipt(null); }} className="w-full p-2 border rounded focus:ring-2 focus:ring-green-500 font-bold text-lg" placeholder="Örn: 14250" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">2. Tartım (Brüt) kg</label>
+                                        <input type="number" inputMode="numeric" value={brutInput} onChange={(e) => { setBrutInput(e.target.value); setReceipt(null); }} className="w-full p-2 border rounded focus:ring-2 focus:ring-green-500 font-bold text-lg" placeholder="Örn: 41700" />
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Belge No</label>
+                                        <input type="number" value={docNoInput} onChange={(e) => setDocNoInput(e.target.value)} className="w-24 p-2 border rounded focus:ring-2 focus:ring-green-500 font-bold" />
+                                    </div>
+                                    <div className={`text-right px-3 py-2 rounded-lg border font-black text-lg ${netPreview === null ? 'bg-gray-100 text-gray-400 border-gray-200' : netPreview > 0 ? 'bg-white text-green-700 border-green-300' : 'bg-red-50 text-red-600 border-red-300'}`}>
+                                        NET: {netPreview === null ? '—' : netPreview.toLocaleString('tr-TR') + ' kg'}
+                                    </div>
+                                </div>
+                                {netPreview !== null && netPreview <= 0 && (
+                                    <p className="text-xs text-red-600 mt-2 font-semibold">Brüt, daradan büyük olmalı (Net pozitif değil).</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <button onClick={createReceipt} disabled={!isReadyToWeigh} className={`w-full py-4 rounded-xl text-lg font-bold text-white shadow-md flex justify-center items-center transition ${!isReadyToWeigh ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-[0.98]'}`}>
+                                    <IconFileText className="mr-2" size={24} /> Fişi Oluştur / Önizle
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* --- SAĞ FİŞ ÖNİZLEME SÜTUNU --- */}
+                        <div className="lg:col-span-7 flex flex-col items-center justify-start bg-gray-100 p-6 rounded-lg border-2 border-dashed border-gray-300 min-h-[600px]">
+                            <h3 className="text-gray-600 mb-4 font-bold text-base flex items-center">
+                                <IconFileText size={20} className="mr-2 text-indigo-600" /> Fiş Önizlemesi
+                            </h3>
+                            {receipt ? (
+                                <div className="w-full flex flex-col items-center">
+                                    <div className="w-full max-w-[580px] bg-white p-4 shadow-xl rounded border border-gray-300">
+                                        <RenderA5Ticket rcpt={receipt} isPreview={true} />
+                                    </div>
+                                    <div className="mt-6 w-full max-w-[580px] flex flex-col gap-2">
+                                        {printMode === 'a4-copies' ? (
+                                            <button onClick={() => setPrintFormat('a4-copies')} className="w-full py-4 bg-indigo-700 text-white font-bold text-base rounded-lg shadow-lg hover:bg-indigo-800 transition flex items-center justify-center active:scale-[0.98]">
+                                                <IconDownload className="mr-2" size={22}/> A4 İki Nüsha Yazdır / PDF
+                                            </button>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <button onClick={() => setPrintFormat('a5')} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition flex items-center justify-center active:scale-[0.98]"><IconDownload className="mr-2" size={18}/> A5 Fiş Yazdır / PDF</button>
+                                                <button onClick={() => setPrintFormat('80mm')} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 transition flex items-center justify-center active:scale-[0.98]"><IconDownload className="mr-2" size={18}/> 80mm Rulo Yazdır</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-gray-400 flex flex-col items-center justify-center h-full my-auto text-center p-8">
+                                    <IconPrinter size={64} className="mb-3 opacity-40" />
+                                    <p className="text-lg font-semibold text-gray-500">Fiş Önizlemesi</p>
+                                    <p className="text-sm mt-1">Araç/şoför ve operatörü seçin, dara ile brüt değerlerini girin, ardından <b>"Fişi Oluştur / Önizle"</b> butonuna basın.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
