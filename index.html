@@ -141,10 +141,10 @@
 
             const [printFormat, setPrintFormat] = useState(null); // 'a5' | '80mm' | 'a4-copies'
 
+            // Varsayılan kayıtlı araç (tek). Eski liste migrasyonla temizlenir.
+            const PRESET_SEED_VERSION = '2';
             const defaultPresets = [
-                { truck: "10AAY560", trailer: "10AAY561", driver: "Zekeriya Küçükaslan" },
-                { truck: "10AAK560", trailer: "10AAK561", driver: "Tahir Kara" },
-                { truck: "10AAY540", trailer: "10AAY541", driver: "Nazım Karakaçan" }
+                { truck: "10MFK04", trailer: "10MFK14", driver: "Mert Fatih Küçükaslan" }
             ];
 
             const [presets, setPresets] = useState([]);
@@ -177,11 +177,15 @@
                 setNow();
 
                 const savedPresets = localStorage.getItem('kantarPresets');
-                if (savedPresets) {
+                const savedPresetVersion = localStorage.getItem('kantarPresetsVersion');
+                if (savedPresets && savedPresetVersion === PRESET_SEED_VERSION) {
+                    // Kullanıcının güncel listesi (eklediği araçlar dahil) korunur
                     setPresets(JSON.parse(savedPresets));
                 } else {
+                    // İlk açılış veya eski sürüm: tek varsayılan araçla sıfırla
                     setPresets(defaultPresets);
                     localStorage.setItem('kantarPresets', JSON.stringify(defaultPresets));
+                    localStorage.setItem('kantarPresetsVersion', PRESET_SEED_VERSION);
                 }
 
                 const savedKantarOps = localStorage.getItem('kantarKantarOps');
