@@ -105,8 +105,8 @@
             const formatTimeForInput = (dateObj) => `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
             const formatDateForPrint = (dateString) => dateString ? dateString.split('-').reverse().join('.') : '';
 
-            // --- BASKI TİPİ (tek fiş vs A4'e iki nüsha) ---
-            const [printMode, setPrintMode] = useState('single'); // 'single' | 'a4-copies'
+            // --- BASKI TİPİ (80mm fiş vs A4'e iki nüsha) ---
+            const [printMode, setPrintMode] = useState('fis'); // 'fis' (80mm) | 'a4-copies'
 
             // --- ARAÇ & ŞOFÖR STATE'LERİ ---
             const [truckPlate, setTruckPlate] = useState('');
@@ -116,6 +116,10 @@
             // --- OPERATÖR SEÇİMİ ---
             const [kantarOp, setKantarOp] = useState('');
             const [kepceOp, setKepceOp] = useState('');
+
+            // --- ÜRÜN SEÇİMİ ---
+            const [urun, setUrun] = useState('');
+            const [urunTuru, setUrunTuru] = useState('');
 
             // --- ZAMAN STATE'LERİ ---
             const [entryDate, setEntryDate] = useState('');
@@ -138,8 +142,10 @@
             const [newDriver, setNewDriver] = useState('');
             const [newKantarOp, setNewKantarOp] = useState('');
             const [newKepceOp, setNewKepceOp] = useState('');
+            const [newProduct, setNewProduct] = useState('');
+            const [newTypeInputs, setNewTypeInputs] = useState({});
 
-            const [printFormat, setPrintFormat] = useState(null); // 'a5' | '80mm' | 'a4-copies'
+            const [printFormat, setPrintFormat] = useState(null); // '80mm' | 'a4-copies'
 
             // Varsayılan kayıtlı araç (tek). Eski liste migrasyonla temizlenir.
             const PRESET_SEED_VERSION = '2';
@@ -148,6 +154,22 @@
             ];
 
             const [presets, setPresets] = useState([]);
+
+            // ==========================================
+            // FİRMA KİMLİĞİ (logo + ad)
+            // Logo "logo.png" olarak index.html ile ayni klasorde durur.
+            // ==========================================
+            const COMPANY_NAME = "GÖNSAN ENERJİ SAN. TİC. LTD. ŞTİ.";
+            const COMPANY_LOGO = "logo.png";
+
+            // ==========================================
+            // ÜRÜN PORTFÖYÜ (ürün + türleri) — ayarlardan yönetilir
+            // ==========================================
+            const PRODUCTS_SEED_VERSION = '1';
+            const defaultProducts = [
+                { name: "KÖMÜR", types: ["TÜVENAN"] }
+            ];
+            const [products, setProducts] = useState(defaultProducts);
 
             // ==========================================
             // OPERATÖR VE İMZA TANIMLAMALARI
@@ -197,6 +219,21 @@
                 const keOps = savedKepceOps ? JSON.parse(savedKepceOps) : defaultKepceOperators;
                 setKepceOperators(keOps);
                 setKepceOp(keOps[0] || '');
+
+                // Ürün portföyü
+                const savedProducts = localStorage.getItem('kantarProducts');
+                const savedProductsVersion = localStorage.getItem('kantarProductsVersion');
+                let prods;
+                if (savedProducts && savedProductsVersion === PRODUCTS_SEED_VERSION) {
+                    prods = JSON.parse(savedProducts);
+                } else {
+                    prods = defaultProducts;
+                    localStorage.setItem('kantarProducts', JSON.stringify(defaultProducts));
+                    localStorage.setItem('kantarProductsVersion', PRODUCTS_SEED_VERSION);
+                }
+                setProducts(prods);
+                setUrun(prods[0] ? prods[0].name : '');
+                setUrunTuru(prods[0] && prods[0].types[0] ? prods[0].types[0] : '');
 
                 // Sıradaki belge no
                 setDocNoInput(String(getNextDocNo()));
@@ -306,6 +343,52 @@
                 if (!list.includes(kepceOp)) setKepceOp(list[0] || '');
             };
 
+            // Ürün / ürün türü ekle-sil (portföy yönetimi)
+            const updateProductsInStorage = (list) => {
+                setProducts(list);
+                localStorage.setItem('kantarProducts', JSON.stringify(list));
+            };
+            const handleProductSelect = (name) => {
+                setUrun(name);
+                const p = products.find(x => x.name === name);
+                setUrunTuru(p && p.types[0] ? p.types[0] : '');
+                setReceipt(null);
+            };
+            const handleAddProduct = () => {
+                const name = newProduct.trim().toUpperCase();
+                if (name && !products.some(p => p.name === name)) {
+                    updateProductsInStorage([...products, { name, types: [] }]);
+                    setNewProduct('');
+                }
+            };
+            const handleDeleteProduct = (idx) => {
+                const list = products.filter((_, i) => i !== idx);
+                updateProductsInStorage(list);
+                if (!list.some(p => p.name === urun)) {
+                    const first = list[0];
+                    setUrun(first ? first.name : '');
+                    setUrunTuru(first && first.types[0] ? first.types[0] : '');
+                }
+            };
+            const handleAddType = (productIdx) => {
+                const pname = products[productIdx].name;
+                const t = (newTypeInputs[pname] || '').trim().toUpperCase();
+                if (!t || products[productIdx].types.includes(t)) return;
+                const list = products.map((p, i) => i === productIdx ? { ...p, types: [...p.types, t] } : p);
+                updateProductsInStorage(list);
+                setNewTypeInputs({ ...newTypeInputs, [pname]: '' });
+                if (products[productIdx].name === urun && !urunTuru) setUrunTuru(t);
+            };
+            const handleDeleteType = (productIdx, typeIdx) => {
+                const list = products.map((p, i) => i === productIdx ? { ...p, types: p.types.filter((_, ti) => ti !== typeIdx) } : p);
+                updateProductsInStorage(list);
+                const cur = list[productIdx];
+                if (cur && cur.name === urun && !cur.types.includes(urunTuru)) {
+                    setUrunTuru(cur.types[0] || '');
+                }
+            };
+            const currentTypes = (products.find(p => p.name === urun) || {}).types || [];
+
             // --- FİŞ OLUŞTURMA (MANUEL TARTIM) ---
             const dara = parseInt(daraInput, 10);
             const brut = parseInt(brutInput, 10);
@@ -324,7 +407,9 @@
                     brut,
                     net: brut - dara,
                     kantarOp,
-                    kepceOp
+                    kepceOp,
+                    urun,
+                    urunTuru
                 });
                 setDocNoInput(String(docNo + 1));
             };
@@ -375,7 +460,11 @@
                 <div className="a5-ticket flex flex-col justify-between" style={{ minHeight: isPreview ? 'auto' : '130mm' }}>
                     <div>
                         <div className="flex justify-between items-center border-b border-black pb-2 mb-3">
-                            <div className="w-24 text-[10px] font-bold text-gray-500 uppercase">{copyLabel}</div>
+                            <div className="w-28 flex items-center" style={{ minHeight: '42px' }}>
+                                {copyLabel ? copyLabel : (
+                                    <img src={COMPANY_LOGO} alt={COMPANY_NAME} className="max-h-10 max-w-full object-contain" onError={(e)=>{ e.currentTarget.style.display='none'; }} />
+                                )}
+                            </div>
                             <h2 className="text-xl font-black text-slate-900 tracking-wider text-center">KANTAR TARTIM FİŞİ</h2>
                             <div className="text-right w-24">
                                 <span className="text-[10px] text-gray-500 block font-bold uppercase">BELGE NO</span>
@@ -411,6 +500,21 @@
                                 <tr>
                                     <td className="font-semibold text-slate-800">{formattedEntryDate} - <span className="font-bold">{entryTime}</span></td>
                                     <td className="font-semibold text-slate-800">{formattedExitDate} - <span className="font-bold">{exitTime}</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table className="a5-table">
+                            <thead>
+                                <tr>
+                                    <th width="50%">ÜRÜN</th>
+                                    <th width="50%">ÜRÜN TÜRÜ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td className="font-bold text-base text-slate-900">{rcpt.urun || '-'}</td>
+                                    <td className="font-semibold text-slate-800">{rcpt.urunTuru || '-'}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -474,21 +578,19 @@
             if (printFormat && receipt) {
                 const rcpt = receipt;
 
-                if (printFormat === 'a5' || printFormat === '80mm') {
-                    const isA5 = printFormat === 'a5';
+                if (printFormat === '80mm') {
                     return (
                         <div className="bg-white min-h-screen text-black">
                             <style>
-                                {isA5
-                                    ? `@page { size: A5 portrait; margin: 8mm; } body { background: white; margin: 0; padding: 0; } .receipt { width: 138mm; margin: 0 auto; }`
-                                    : `@page { size: 80mm auto; margin: 0; } body { background: white; margin: 0; padding: 0; } .receipt { width: 76mm; padding: 4mm 2mm; margin: 0 auto; }`}
+                                {`@page { size: 80mm auto; margin: 0; } body { background: white; margin: 0; padding: 0; } .receipt { width: 76mm; padding: 4mm 2mm; margin: 0 auto; }`}
                                 {`@media print { .no-print { display: none !important; } }`}
                             </style>
                             <div className="receipt">
-                                {isA5 ? (
-                                    <RenderA5Ticket rcpt={rcpt} />
-                                ) : (
+                                {(
                                     <div style={{ fontFamily: "'Courier New', Courier, monospace" }}>
+                                        <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+                                            <img src={COMPANY_LOGO} alt={COMPANY_NAME} style={{ maxHeight: '46px', maxWidth: '90%' }} onError={(e)=>{ e.currentTarget.style.display='none'; }} />
+                                        </div>
                                         <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>KANTAR TARTIM FİŞİ</div>
                                         <div style={{ textAlign: 'center', fontSize: '11px', color: '#333', marginBottom: '12px' }}>Belge No: {rcpt.docNo}</div>
                                         <div style={{ borderBottom: '2px solid #000', margin: '8px 0' }}></div>
@@ -498,6 +600,9 @@
                                         <div style={{ borderBottom: '1px dashed #000', margin: '8px 0' }}></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Giriş:</span> <span style={{ fontWeight: 'bold' }}>{formattedEntryDate} {entryTime}</span></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Çıkış:</span> <span style={{ fontWeight: 'bold' }}>{formattedExitDate} {exitTime}</span></div>
+                                        <div style={{ borderBottom: '1px dashed #000', margin: '8px 0' }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Ürün:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.urun || '-'}</span></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Ürün Türü:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.urunTuru || '-'}</span></div>
                                         <div style={{ borderBottom: '1px dashed #000', margin: '8px 0' }}></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Dara:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.dara.toLocaleString('tr-TR')} kg</span></div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Brüt:</span> <span style={{ fontWeight: 'bold' }}>{rcpt.brut.toLocaleString('tr-TR')} kg</span></div>
@@ -532,9 +637,9 @@
                                 `}
                             </style>
                             <div className="a4-container">
-                                <div className="a5-wrapper"><RenderA5Ticket rcpt={rcpt} copyLabel="İŞLETME NÜSHASI" /></div>
+                                <div className="a5-wrapper"><RenderA5Ticket rcpt={rcpt} /></div>
                                 <div style={{ margin: '6mm 0', borderTop: '1px dashed #000', width: '100%' }}></div>
-                                <div className="a5-wrapper"><RenderA5Ticket rcpt={rcpt} copyLabel="ŞOFÖR NÜSHASI" /></div>
+                                <div className="a5-wrapper"><RenderA5Ticket rcpt={rcpt} copyLabel={<span className="text-[10px] font-black text-slate-900 uppercase leading-tight">ŞOFÖR<br/>NÜSHASI</span>} /></div>
                             </div>
                             <div className="no-print flex flex-col items-center justify-center mt-8 space-y-3 p-4 text-center font-sans">
                                 <p className="text-gray-600">Yazdırma penceresi otomatik açılmadıysa <b>CTRL+P</b> tuşlarına basabilirsiniz.</p>
@@ -554,7 +659,7 @@
                 <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center z-10">
-                            <h2 className="text-xl font-bold flex items-center text-gray-800"><IconSettings className="mr-2" /> Araç, Şoför ve Operatör Ayarları</h2>
+                            <h2 className="text-xl font-bold flex items-center text-gray-800"><IconSettings className="mr-2" /> Araç, Operatör ve Ürün Ayarları</h2>
                             <button onClick={() => setShowSettings(false)} className="p-2 bg-gray-100 hover:bg-red-100 hover:text-red-600 rounded-full transition"><IconX size={24} /></button>
                         </div>
                         <div className="p-6 space-y-8">
@@ -618,6 +723,42 @@
                                     </div>
                                 </div>
                             </div>
+
+                            {/* ÜRÜNLER (PORTFÖY) */}
+                            <div>
+                                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 mb-4">
+                                    <h3 className="font-semibold text-orange-800 mb-3 text-sm uppercase">Yeni Ürün Ekle</h3>
+                                    <div className="flex gap-2">
+                                        <input type="text" placeholder="Ürün adı (örn: KÖMÜR)" value={newProduct} onChange={e => setNewProduct(e.target.value)} className="flex-1 p-2 border rounded uppercase" />
+                                        <button onClick={handleAddProduct} className="px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded flex items-center"><IconPlus size={18} className="mr-1" /> Ekle</button>
+                                    </div>
+                                </div>
+                                <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase">Ürünler ve Türleri ({products.length})</h3>
+                                <div className="space-y-3">
+                                    {products.length === 0 && <p className="text-gray-500 text-sm italic">Kayıtlı ürün bulunmuyor.</p>}
+                                    {products.map((p, idx) => (
+                                        <div key={idx} className="bg-gray-50 border p-3 rounded">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="font-bold text-gray-800 bg-white px-2 py-1 rounded border shadow-sm">{p.name}</span>
+                                                <button onClick={() => handleDeleteProduct(idx)} className="p-2 text-red-500 hover:bg-red-100 rounded" title="Ürünü Sil"><IconTrash2 size={18} /></button>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {p.types.length === 0 && <span className="text-xs text-gray-400 italic">Tür yok</span>}
+                                                {p.types.map((t, ti) => (
+                                                    <span key={ti} className="inline-flex items-center gap-1 bg-white border border-orange-200 text-orange-800 text-xs font-semibold px-2 py-1 rounded">
+                                                        {t}
+                                                        <button onClick={() => handleDeleteType(idx, ti)} className="text-red-500 hover:text-red-700" title="Türü sil"><IconX size={12} /></button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input type="text" placeholder="Yeni tür (örn: TÜVENAN)" value={newTypeInputs[p.name] || ''} onChange={e => setNewTypeInputs({ ...newTypeInputs, [p.name]: e.target.value })} className="flex-1 p-1.5 border rounded text-sm uppercase" />
+                                                <button onClick={() => handleAddType(idx)} className="px-3 bg-gray-800 text-white rounded text-sm flex items-center"><IconPlus size={14} className="mr-1" /> Tür Ekle</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -652,10 +793,10 @@
                             <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
                                 <div className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2">Baskı Tipini Seçin</div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <button onClick={() => setPrintMode('single')} className={`py-2 px-3 rounded-lg font-bold text-sm transition-all border ${printMode === 'single' ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>📄 Tekli Fiş (A5 / 80mm)</button>
+                                    <button onClick={() => setPrintMode('fis')} className={`py-2 px-3 rounded-lg font-bold text-sm transition-all border ${printMode === 'fis' ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>📄 Fiş Çıktısı (80mm)</button>
                                     <button onClick={() => setPrintMode('a4-copies')} className={`py-2 px-3 rounded-lg font-bold text-sm transition-all border ${printMode === 'a4-copies' ? 'bg-indigo-600 text-white border-indigo-700 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>📑 A4 İki Nüsha</button>
                                 </div>
-                                <p className="text-[11px] text-indigo-700 mt-2">A4 iki nüsha = aynı fişin işletme + şoför kopyası tek sayfada.</p>
+                                <p className="text-[11px] text-indigo-700 mt-2">A4 iki nüsha = aynı fişin firma + şoför nüshası tek sayfada.</p>
                             </div>
 
                             {/* ARAÇ VE ŞOFÖR SEÇİMİ */}
@@ -686,6 +827,28 @@
                                         <div className="flex items-center"><label className="w-28 text-sm text-gray-700 font-semibold">Şoför:</label><input type="text" value={driver} onChange={(e) => { setDriver(e.target.value); setReceipt(null); }} className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" placeholder="Ad Soyad Giriniz"/></div>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* ÜRÜN SEÇİMİ */}
+                            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                <h2 className="text-md font-semibold text-orange-800 mb-3">Ürün Bilgisi</h2>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ürün</label>
+                                        <select value={urun} onChange={(e) => handleProductSelect(e.target.value)} className="w-full p-2 border rounded focus:ring-2 focus:ring-orange-500 font-semibold bg-white">
+                                            {products.length === 0 && <option value="">—</option>}
+                                            {products.map((p, i) => <option key={i} value={p.name}>{p.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ürün Türü</label>
+                                        <select value={urunTuru} onChange={(e) => { setUrunTuru(e.target.value); setReceipt(null); }} className="w-full p-2 border rounded focus:ring-2 focus:ring-orange-500 font-semibold bg-white">
+                                            {currentTypes.length === 0 && <option value="">—</option>}
+                                            {currentTypes.map((t, i) => <option key={i} value={t}>{t}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-orange-700 mt-2">Ürün ve türlerini "Araç Yönetimi" ekranından ekleyip çıkarabilirsin.</p>
                             </div>
 
                             {/* OPERATÖR SEÇİMİ */}
@@ -781,10 +944,7 @@
                                                 <IconDownload className="mr-2" size={22}/> A4 İki Nüsha Yazdır / PDF
                                             </button>
                                         ) : (
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <button onClick={() => setPrintFormat('a5')} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg shadow hover:bg-indigo-700 transition flex items-center justify-center active:scale-[0.98]"><IconDownload className="mr-2" size={18}/> A5 Fiş Yazdır / PDF</button>
-                                                <button onClick={() => setPrintFormat('80mm')} className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 transition flex items-center justify-center active:scale-[0.98]"><IconDownload className="mr-2" size={18}/> 80mm Rulo Yazdır</button>
-                                            </div>
+                                            <button onClick={() => setPrintFormat('80mm')} className="w-full py-4 bg-blue-600 text-white font-bold text-base rounded-lg shadow-lg hover:bg-blue-700 transition flex items-center justify-center active:scale-[0.98]"><IconDownload className="mr-2" size={22}/> 80mm Fiş Yazdır / PDF</button>
                                         )}
                                     </div>
                                 </div>

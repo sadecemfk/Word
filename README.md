@@ -12,8 +12,11 @@ sunucu gerekmez.
 - **Otomatik (ve düzenlenebilir) alanlar:** Plaka kayıtlı araçtan, kantarcı/kepçe operatörü
   listeden, tarih-saat "şu an" olarak önden dolar; istenirse elle değiştirilir.
 - **Sıralı belge no:** Her fişte artan sayaç (`localStorage`), elle de değiştirilebilir.
-- **Araç ve operatör yönetimi:** Ayarlar ekranından kalıcı olarak eklenip silinir.
-- **Baskı:** A5 fiş, 80mm termal rulo, veya A4'e işletme + şoför iki nüsha.
+- **Araç, operatör ve ürün yönetimi:** Ayarlar ekranından kalıcı olarak eklenip silinir.
+- **Ürün portföyü:** Her tartımda ürün (örn. KÖMÜR) ve ürün türü (örn. TÜVENAN) seçilir;
+  ürünler ve türleri ayarlardan yönetilir.
+- **Firma logosu:** `logo.png` fişlerin üst kısmında görünür (A4 nüsha başlığı ve 80mm fiş).
+- **Baskı:** 80mm termal fiş veya A4'e firma + şoför iki nüsha.
 - **Operatör imzası:** `imzalar/` klasörüne görsel koyup eşleştirerek fişe basılabilir.
 
 ## Canlı Yayın (GitHub Pages)
